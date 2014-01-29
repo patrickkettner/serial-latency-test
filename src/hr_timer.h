@@ -42,7 +42,13 @@
 	#include <time.h>
 	typedef struct timespec timerStruct;
 	inline void GetHighResolutionTime( timerStruct *t ) 
-		{ clock_gettime( CLOCK_MONOTONIC_RAW, t ); }
+		{
+#if defined(CLOCK_MONOTONIC_RAW)
+			clock_gettime( CLOCK_MONOTONIC_RAW, t );
+#else
+			clock_gettime( CLOCK_MONOTONIC, t );
+#endif
+		}
 	inline double ConvertTimeDifferenceToSec( timerStruct *a, timerStruct *b ) 
 	{
 		unsigned int diff;
