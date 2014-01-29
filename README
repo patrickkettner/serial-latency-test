@@ -32,7 +32,7 @@ Run serial-latency-test as follows:
  $ sudo apt-get -y install mingw32 mingw32-binutils mingw32-runtime
  $ ./configure --build=i686-linux --host=i586-mingw32msvc
  $ sudo apt-get -y install wine
- $ mkdir -p ~/.wine/dosdevices & cd ~/.wine/dosdevices
+ $ mkdir -p ~/.wine/dosdevices && cd ~/.wine/dosdevices
  $ ln -s /dev/ttyUSB0 com1
  $ wine serial-latency-test.exe -p COM1: -b 9600
 
