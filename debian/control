@@ -2,13 +2,15 @@ Source: serial-latency-test
 Section: utils
 Priority: optional
 Maintainer: Jakob Flierl <jakob.flierl@gmail.com>
-Uploaders: Jakob Flierl <jakob.flierl@gmail.com>
-Build-Depends: debhelper (>= 5), autotools-dev, automake
-Standards-Version: 3.7.3
+Build-Depends: debhelper (>= 6), libtool, autotools-dev, automake, dh-autoreconf, autopoint
+Standards-Version: 3.9.4
 Homepage: http://github.com/koppi/serial-latency-test
 
 Package: serial-latency-test
-Architecture: any
-Depends: ${shlibs:Depends}, pciutils (>=1:2.1.11-4), lsb-base (>= 3.0-9)
-Description: serial port latency test
- This package contains a command-line utility for measuring serial port latency.
+Architecture: linux-any
+Depends: pciutils (>=1:2.1.11-4), lsb-base (>= 3.0-9), ${misc:Depends}
+Recommends: alsa-base (>= 1.0.15)
+Conflicts: udev (<< 0.060), alsa-base (<< 1.0.9b-3)
+Description: Utility for measuring serial port latency
+ Tools included:
+  - serial-latency-test: utility for measuring serial port latency.
