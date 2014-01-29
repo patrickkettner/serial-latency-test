@@ -14,3 +14,8 @@ before_install:
 # dpkg-buildpackage to build the package using the compilers specified in the
 # current Travis build environment.
 script: debuild --preserve-env --preserve-envvar PATH -i -us -uc -b
+
+after_success:
+    - sudo dpkg -i ../serial-latency-test*.deb
+    - sudo apt-get -f install
+    - serial-latency-test -V
