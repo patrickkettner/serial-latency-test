@@ -8,6 +8,8 @@ AC_PREFIX_DEFAULT(/usr)
 AM_GNU_GETTEXT_VERSION([0.16.1])
 AM_GNU_GETTEXT([external])
 
+AM_MAINTAINER_MODE([enable])
+
 dnl Checks for programs.
 
 dnl try to guess cross-compiler if not set
