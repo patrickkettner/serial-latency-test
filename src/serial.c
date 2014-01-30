@@ -219,9 +219,51 @@ PORTTYPE serial_open(const char *port, int baud)
 		B(50);		B(75);		B(110);		B(134);		B(150);
 		B(200);		B(300);		B(600);		B(1200);	B(1800);
 		B(2400);	B(4800);	B(9600);	B(19200);	B(38400);
-		B(57600);	B(115200);	B(230400);	B(460800);	B(500000);
-		B(576000);	B(921600);	B(1000000); B(1152000); B(1500000);
-		B(2000000); B(2500000); B(3000000); B(3500000); B(4000000);
+
+        B(57600);   B(115200);	B(230400);	B(460800);
+
+#if defined B500000
+ B(500000);
+#endif
+
+#if defined B576000
+ B(576000);
+#endif
+
+B(921600);
+
+#if defined B1000000
+ B(1000000);
+#endif
+
+#if defined B1152000
+ B(1152000);
+#endif
+
+#if defined B1500000
+ B(1500000);
+#endif
+
+#if defined B2000000
+ B(2000000);
+#endif
+
+#if defined B2500000
+ B(2500000);
+#endif
+
+#if defined B3000000
+B(3000000);
+#endif
+
+#if defined B3500000
+ B(3500000);
+#endif
+
+#if defined B4000000
+ B(4000000);
+#endif
+
 #undef B
 	default:
 		fprintf(stderr, "serial_open: unknown baud rate %d\n", baud);
