@@ -1,7 +1,7 @@
 AM_CPPFLAGS=-I$(top_srcdir)/include
 
-SUBDIRS= include src
-EXTRA_DIST= config.rpath config.rpath README configure version.m4
+SUBDIRS= include src m4
+EXTRA_DIST= config.rpath config.rpath README configure version.m4 autogen.sh version.sh
 AUTOMAKE_OPTIONS=foreign
 ACLOCAL_AMFLAGS = -I m4
 
