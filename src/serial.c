@@ -6,25 +6,19 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
-
+#include <errno.h>
 #if defined (HAVE_TERMIOS_H)
 #include <termios.h>
 #endif
-
 #if defined (HAVE_SYS_IOCTL_H)
 #include <sys/ioctl.h>
 #endif
-
 #if defined (HAVE_LINUX_SERIAL_H)
 #include <linux/serial.h>
 #endif
-
-#include <errno.h>
-
 #if defined (HAVE_LINUX_IOCTL_H)
 #include <linux/ioctl.h>
 #endif
-
 #if defined (HAVE_ASM_IOCTLS_H)
 #include <asm/ioctls.h>
 #endif
@@ -80,7 +74,7 @@ ssize_t serial_read(PORTTYPE fd, uint8_t *buf, size_t len)
 		}
 		if (n > 0) count += n;
 		else {
-			if (waiting) break;  // 1 sec timeout
+			if (waiting) break;	 // 1 sec timeout
 			timeout.ReadIntervalTimeout = MAXDWORD;
 			timeout.ReadTotalTimeoutMultiplier = MAXDWORD;
 			timeout.ReadTotalTimeoutConstant = 1000;
@@ -132,7 +126,7 @@ ssize_t serial_read(PORTTYPE fd, uint8_t *buf, size_t len)
 #if defined (HAVE_TERMIOS_H)
 PORTTYPE serial_open(const char *port, int baud, struct termios *opts)
 #else
-PORTTYPE serial_open(const char *port, int baud)
+	PORTTYPE serial_open(const char *port, int baud)
 #endif
 {
 	PORTTYPE fd;
@@ -219,49 +213,10 @@ PORTTYPE serial_open(const char *port, int baud)
 		B(50);		B(75);		B(110);		B(134);		B(150);
 		B(200);		B(300);		B(600);		B(1200);	B(1800);
 		B(2400);	B(4800);	B(9600);	B(19200);	B(38400);
-
-        B(57600);   B(115200);	B(230400);	B(460800);
-
+		B(57600);	B(115200);	B(230400);	B(460800);
 #if defined B500000
- B(500000);
-#endif
-
-#if defined B576000
- B(576000);
-#endif
-
-B(921600);
-
-#if defined B1000000
- B(1000000);
-#endif
-
-#if defined B1152000
- B(1152000);
-#endif
-
-#if defined B1500000
- B(1500000);
-#endif
-
-#if defined B2000000
- B(2000000);
-#endif
-
-#if defined B2500000
- B(2500000);
-#endif
-
-#if defined B3000000
-B(3000000);
-#endif
-
-#if defined B3500000
- B(3500000);
-#endif
-
-#if defined B4000000
- B(4000000);
+		B(500000); B(576000); B(921600); B(1000000); B(1152000);
+		B(1500000); B(2000000); B(2500000);B(3000000); B(3500000); B(4000000);
 #endif
 
 #undef B
@@ -341,7 +296,7 @@ B(3000000);
 #if defined (HAVE_TERMIOS_H)
 int serial_close(PORTTYPE fd, struct termios *opts)
 #else
-int serial_close(PORTTYPE fd)
+	int serial_close(PORTTYPE fd)
 #endif
 {
 /*
