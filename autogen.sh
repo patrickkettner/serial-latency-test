@@ -9,9 +9,6 @@ if test ! -f configure.ac ; then
 	exit 1
 fi
 
-# Get the initial version.
-sh version.sh
-
 echo "running aclocal"
 aclocal
 rc=$?
