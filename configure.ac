@@ -57,11 +57,6 @@ AC_CHECK_HEADERS([fcntl.h float.h limits.h mach/mach.h sys/time.h])
 
 AC_PROG_RANLIB
 
-AC_TYPE_SIZE_T
-AC_TYPE_SSIZE_T
-AC_TYPE_UINT64_T
-AC_TYPE_UINT8_T
-
 AC_CHECK_FUNCS([clock_gettime], [CLOCK_LIB=], [AC_CHECK_LIB([rt], [clock_gettime], [CLOCK_LIB=-lrt])])
 AC_SUBST([CLOCK_LIB])
 
