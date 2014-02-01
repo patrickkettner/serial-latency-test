@@ -1,8 +1,9 @@
-serial-latency-test (0.0.1-1ubuntu1) UNRELEASED; urgency=low
+serial-latency-test (0.0.1-2) unstable; urgency=low
 
   * Switch to dpkg-source 3.0 (git) format
+  * Bump version
 
- -- Jakob Flierl <koppi@x200>  Sun, 02 Feb 2014 00:17:11 +0100
+ -- Jakob Flierl <jakob.flierl@gmail.com>  Sun, 02 Feb 2014 00:17:11 +0100
 
 serial-latency-test (0.0.1-1) unstable; urgency=low
 

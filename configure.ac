@@ -1,6 +1,6 @@
 AC_PREREQ(2.59)
 
-AC_INIT([serial-latency-test], [0.0.1-1], [jakob.flierl@gmail.com])
+AC_INIT([serial-latency-test], [0.0.1-2], [jakob.flierl@gmail.com])
 AC_CONFIG_SRCDIR([src/serial-latency-test.c])
 AM_INIT_AUTOMAKE([-Wall foreign])
 
