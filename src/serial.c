@@ -87,7 +87,11 @@ ssize_t serial_read(PORTTYPE fd, uint8_t *buf, size_t len)
 	int r;
 	int retry = 0;
 
-	if (len > sizeof(buf) || len < 1) return -1;
+	/*
+	if (len > sizeof(buf) || len < 1) {
+		fprintf(stderr, "serial_read() len=%d sizeof(buf)=%ld\n", len, sizeof(buf));
+		return -1;
+		}*/
 
 	// non-blocking read mode
 	fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
@@ -106,12 +110,12 @@ ssize_t serial_read(PORTTYPE fd, uint8_t *buf, size_t len)
 			t.tv_sec = 1;
 			t.tv_usec = 0;
 			r = select(fd+1, &fds, NULL, NULL, &t);
-			//printf("select, r = %d\n", r);
+			// printf("select, r = %d\n", r);
 			if (r < 0) return -1;
 			if (r == 0) return count; // timeout
 		}
 		retry++;
-		if (retry > 1000) return -100; // no input
+		if (retry > 10000) return -100; // no input
 	}
 	fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) & ~O_NONBLOCK);
 #endif
@@ -249,8 +253,8 @@ PORTTYPE serial_open(const char *port, int baud, struct termios *opts)
 	toptions.c_oflag &= ~OPOST;
 
 	// see: http://unixwiz.net/techtips/termios-vmin-vtime.html
-	toptions.c_cc[VMIN]	 = 0;
-	toptions.c_cc[VTIME] = 100;
+	toptions.c_cc[VMIN]	 = 1;
+	toptions.c_cc[VTIME] = 0;
 
 	if (tcsetattr(fd, TCSANOW, &toptions) < 0) {
 		fprintf(stderr, "serial_open: tcsetattr() failed %d: %s\n", errno, strerror(errno));
@@ -265,16 +269,18 @@ PORTTYPE serial_open(const char *port, int baud, struct termios *opts)
   }
 */
 
+/*
 	if (tcflush(fd, TCIOFLUSH) < 0) {
 		fprintf(stderr, "serial_open: tcflush() failed %d: %s\n", errno, strerror(errno));
 		return 0;
 	}
+*/
 #endif
 
 #if defined (HAVE_LINUX_SERIAL_H)
 	struct serial_struct ser_info;
 
-	// Linux-specific: enable low latency mode (FTDI "nagling off")
+	// Linux-specific: enable low latency mode
 
 	if (ioctl(fd, TIOCGSERIAL, &ser_info) < 0) {
 		fprintf(stderr, "serial_open: ioctl(TIOCGSERIAL) failed %d: %s\n", errno, strerror(errno));
@@ -311,3 +317,36 @@ int serial_close(PORTTYPE fd, struct termios *opts)
 	return close(fd);
 #endif
 }
+
+#if defined (HAVE_LINUX_SERIAL_H)
+int serial_set_xmit_fifo_size(PORTTYPE fd, int size) {
+	struct serial_struct ser_info;
+
+	if (ioctl(fd, TIOCGSERIAL, &ser_info) < 0) {
+		fprintf(stderr, "serial_set_xmit_fifo_size: ioctl(TIOCGSERIAL) failed %d: %s\n", errno, strerror(errno));
+		return -1;
+	}
+
+	fprintf(stderr, "serial_set_xmit_fifo_size was %d\n", ser_info.xmit_fifo_size);
+
+	ser_info.xmit_fifo_size = size;
+
+	if (ioctl(fd, TIOCSSERIAL, &ser_info) < 0) {
+		fprintf(stderr, "serial_set_xmit_fifo_size: ioctl(TIOCSSERIAL) failed %d: %s\n", errno, strerror(errno));
+		return -1;
+	}
+
+	return 0;
+}
+
+int serial_get_xmit_fifo_size(PORTTYPE fd) {
+	struct serial_struct ser_info;
+
+	if (ioctl(fd, TIOCGSERIAL, &ser_info) < 0) {
+		fprintf(stderr, "serial_get_xmit_fifo_size: ioctl(TIOCGSERIAL) failed %d: %s\n", errno, strerror(errno));
+		return -1;
+	}
+
+	return ser_info.xmit_fifo_size;
+}
+#endif

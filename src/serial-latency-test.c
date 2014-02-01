@@ -84,17 +84,23 @@ static void usage(const char *argv0)
 		   "					 (default: 99)\n\n"
 #endif
 		   "  -S, --samples=<int> to take for the measurement (default: 10000)\n"
+           "  -c, --count=<int>  number of bytes to send per sample (default: 1)\n"
 		   "  -w, --wait=ms		 time interval between measurements\n"
+#if defined (HAVE_LINUX_SERIAL_H)
+		   "  -x  --xmit=<int>   set xmit_fifo_size to given number (default: 0)\n"
+#endif
 		   "  -r, --random-wait	 use random interval between wait and 2*wait\n\n"
            "  -o, --output=file  write the output to file\n\n"
 		   "  -h, --help		 this help\n"
-		   "  -V, --version		 print current version\n"
+		   "  -V, --version		 print current version\n\n"
+		   "Report bugs to Jakob Flierl <jakob.flierl@gmail.com>\n"
+		   "Website and manual: https://github.com/koppi/serial-latency-test\n"
 		   "\n", argv0);
 }
 
 static void print_version(void)
 {
-	printf("> %s %s\n", PACKAGE, VERSION);
+	printf("%s version %s\n", PACKAGE, VERSION);
 }
 
 #if defined (_WIN32)
@@ -113,68 +119,6 @@ static void wait_ms(double t)
 }
 #endif
 
-#if defined (_WIN32)
-LARGE_INTEGER
-getFILETIMEoffset()
-{
-	SYSTEMTIME s;
-	FILETIME f;
-	LARGE_INTEGER t;
-
-	s.wYear = 1970;
-	s.wMonth = 1;
-	s.wDay = 1;
-	s.wHour = 0;
-	s.wMinute = 0;
-	s.wSecond = 0;
-	s.wMilliseconds = 0;
-	SystemTimeToFileTime(&s, &f);
-	t.QuadPart = f.dwHighDateTime;
-	t.QuadPart <<= 32;
-	t.QuadPart |= f.dwLowDateTime;
-	return (t);
-}
-
-int
-clock_gettime(int X, struct timeval *tv)
-{
-	LARGE_INTEGER			t;
-	FILETIME			f;
-	double					microseconds;
-	static LARGE_INTEGER	offset;
-	static double			frequencyToMicroseconds;
-	static int				initialized = 0;
-	static BOOL				usePerformanceCounter = 0;
-
-	if (!initialized) {
-		LARGE_INTEGER performanceFrequency;
-		initialized = 1;
-		usePerformanceCounter = QueryPerformanceFrequency(&performanceFrequency);
-		if (usePerformanceCounter) {
-			QueryPerformanceCounter(&offset);
-			frequencyToMicroseconds = (double)performanceFrequency.QuadPart / 1000000.;
-		} else {
-			offset = getFILETIMEoffset();
-			frequencyToMicroseconds = 10.;
-		}
-	}
-	if (usePerformanceCounter) QueryPerformanceCounter(&t);
-	else {
-		GetSystemTimeAsFileTime(&f);
-		t.QuadPart = f.dwHighDateTime;
-		t.QuadPart <<= 32;
-		t.QuadPart |= f.dwLowDateTime;
-	}
-
-	t.QuadPart -= offset.QuadPart;
-	microseconds = (double)t.QuadPart / frequencyToMicroseconds;
-	t.QuadPart = microseconds;
-	tv->tv_sec = t.QuadPart / 1000000;
-	tv->tv_usec = t.QuadPart % 1000000;
-	return (0);
-}
-#endif
-
 /* many thanks to Randall Munroe (http://xkcd.com/221/) */
 static int getRandomNumber(void)
 {
@@ -184,6 +128,7 @@ static int getRandomNumber(void)
 
 static void sighandler(int sig)
 {
+	fprintf(stderr,"caught signal - shutting down.\n");
 	signal_received = 1;
 }
 
@@ -201,25 +146,23 @@ int main(int argc, char *argv[])
 	setvbuf(stdout, NULL, _IONBF, 0);
 	setvbuf(stderr, NULL, _IONBF, 0);
 
-#if defined (HAVE_SCHED_H)
-	static char short_options[] = "hVRP:p:b:S:w:ro:";
-#else
-	static char short_options[] = "hVp:b:S:w:ro:";
-#endif
-
 	static struct option long_options[] = {
-		{"help", 0, NULL, 'h'},
-		{"version", 0, NULL, 'V'},
+		{"help", no_argument, NULL, 'h'},
+		{"version", no_argument, NULL, 'V'},
 #if defined (HAVE_SCHED_H)
-		{"realtime", 0, NULL, 'R'},
-		{"priority", 1, NULL, 'P'},
+		{"realtime", no_argument, NULL, 'R'},
+		{"priority", required_argument, NULL, 'P'},
 #endif
-		{"port", 1, NULL, 'p'},
-		{"baud", 1, NULL, 'b'},
-		{"samples", 1, NULL, 'S'},
-		{"wait", 1, NULL, 'w'},
-		{"random-wait", 0, NULL, 'r'},
-		{"output", 1, NULL, 'o'},
+		{"port", required_argument, NULL, 'p'},
+		{"baud", required_argument, NULL, 'b'},
+		{"samples", required_argument, NULL, 'S'},
+		{"count", required_argument, NULL, 'c'},
+		{"wait", required_argument, NULL, 'w'},
+#if defined (HAVE_LINUX_SERIAL_H)
+		{"xmit", required_argument, NULL, 'x'},
+#endif
+		{"random-wait", no_argument, NULL, 'r'},
+		{"output", required_argument, NULL, 'o'},
 		{}
 	};
 
@@ -227,7 +170,11 @@ int main(int argc, char *argv[])
 	int do_realtime = 0;
 	int rt_prio = sched_get_priority_max(SCHED_FIFO);
 #endif
+#if defined (HAVE_LINUX_SERIAL_H)
+	int xmit_fifo_size = 0;
+#endif
 	int nr_samples = 10000;
+	int nr_count = 1;
 	int random_wait = 0;
 	double wait = 0.0;
 	char output[PATH_MAX];
@@ -242,7 +189,23 @@ int main(int argc, char *argv[])
 
 	int c;
 
-	while ((c = getopt_long(argc, argv, short_options,
+	while ((c = getopt_long(argc, argv,
+							"h"   /* help */
+							"V"   /* version */
+#if defined (HAVE_SCHED_H)
+							"R"   /* realtime */
+							"P:"  /* priority */
+#endif
+							"p:"  /* port */
+							"b:"  /* baud */
+							"S:"  /* samples */
+							"c:"  /* count */
+							"w:"  /* wait */
+#if defined (HAVE_LINUX_SERIAL_H)
+							"x:"  /* xmit */
+#endif
+							"r"   /* random-wait */
+							"o:", /* output */
 							long_options, NULL)) != -1) {
 		switch (c) {
 		case 'h':
@@ -284,6 +247,9 @@ int main(int argc, char *argv[])
 				nr_samples = 1;
 			}
 			break;
+		case 'c':
+			nr_count = atoi(optarg);
+			break;
 		case 'w':
 			wait = atof(optarg);
 			if (wait < 0) {
@@ -291,6 +257,11 @@ int main(int argc, char *argv[])
 				wait = 0;
 			}
 			break;
+#if defined(HAVE_LINUX_SERIAL_H)
+		case 'x':
+			xmit_fifo_size = atoi(optarg);
+			break;
+#endif
 		case 'r':
 			random_wait = 1;
 			break;
@@ -306,16 +277,6 @@ int main(int argc, char *argv[])
 	if (argc == 1 || argv[optind]) {
 		usage(argv[0]);
 		return EXIT_FAILURE;
-	}
-
-#if defined (HAVE_TERMIOS_H)
-	s.fd = serial_open(s.port, s.baud, &s.opts);
-#else
-	s.fd = serial_open(s.port, s.baud);
-#endif
-
-	if (!s.fd) {
-		fatal("Unable to open %s", s.port);
 	}
 
 	print_version();
@@ -335,19 +296,49 @@ int main(int argc, char *argv[])
 	}
 #endif
 
+#if defined (HAVE_TERMIOS_H)
+	s.fd = serial_open(s.port, s.baud, &s.opts);
+#else
+	s.fd = serial_open(s.port, s.baud);
+#endif
+
+	if (!s.fd) {
+		fatal("Unable to open %s", s.port);
+	}
+
+#if defined (HAVE_LINUX_SERIAL_H)
+	if (xmit_fifo_size > 0) {
+		if (serial_set_xmit_fifo_size(s.fd, xmit_fifo_size) < 0) {
+			fatal("Unable to set xmit_fifo_size %d on %s", xmit_fifo_size, s.port);
+		} else {
+			printf("> set xmit_fifo_size to %d\n", serial_get_xmit_fifo_size(s.fd));
+		}
+	}
+#endif
+
 	timerStruct begin, end;
 
 	printf("\n> sampling %d latency values - please wait ...\n", nr_samples);
-	printf("> press Ctrl+C to abort test\n");
+	printf("> press Ctrl+C to end test.\n");
 
 	signal(SIGINT,	sighandler);
 	signal(SIGTERM, sighandler);
 
-	double *delays = calloc(nr_samples, sizeof *delays);
+	double *delays = calloc(nr_samples + 1, sizeof *delays);
 	check_mem(delays);
 
 	unsigned int sample_nr = 0;
 	double min_delay = DBL_MAX, max_delay = 0;
+
+	uint8_t *buf_rx = calloc(nr_count + 1, sizeof (uint8_t));
+	uint8_t *buf_tx = calloc(nr_count + 1, sizeof (uint8_t));
+
+	unsigned int i;
+
+	for (i = 0; i < nr_count; ++i) {
+		buf_tx[i] = i % 255;
+	}
+
 	for (c = 0; c < nr_samples; ++c) {
 		if (wait) {
 			if (random_wait)
@@ -360,19 +351,25 @@ int main(int argc, char *argv[])
 
 		int n = 0;
 
-		uint8_t buf_tx[1];
-
-		serial_write(s.fd, buf_tx, 1);
-
 		GetHighResolutionTime(&begin);
+
+		n = serial_write(s.fd, buf_tx, nr_count);
+
+		if (n != nr_count) {
+			fprintf(stderr, "serial_write() n = %d nr_count = %d\n", n, nr_count);
+		}
 
 		int rd = 0;
 
 		while(!rd) {
-			uint8_t buf_rx[1];
-			n = serial_read(s.fd, buf_rx, 1); // blocking read using select
-			if (n == 1) {
+			n = serial_read(s.fd, buf_rx, nr_count); // blocking read using select
+
+			if (n == nr_count) {
 				rd = 1;
+			} else {
+				rd = 1;
+				signal_received = 1;
+				fprintf(stderr, "serial_read() n = %d nr_count = %d\n", n, nr_count);
 			}
 		}
 
@@ -404,8 +401,6 @@ int main(int argc, char *argv[])
 		fatal("No delay was measured; clock has too low resolution");
 	}
 
-	unsigned int i, j;
-
 	if (strlen(output)) {
 		FILE *fp = fopen(output, "w");
 
@@ -420,6 +415,7 @@ int main(int argc, char *argv[])
 		fclose(fp);
 	}
 
+	unsigned int j;
 	unsigned int delay_hist[1000];
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof *(a))
@@ -465,6 +461,10 @@ int main(int argc, char *argv[])
 
 	printf("\n  best latency was %.2f msec\n", min_delay / 1000000.0);
 	printf(" worst latency was %.2f msec\n\n", max_delay / 1000000.0);
+
+	free(delays);
+	free(buf_rx);
+	free(buf_tx);
 
 #if defined(HAVE_TERMIOS_H)
 	serial_close(s.fd, &s.opts);

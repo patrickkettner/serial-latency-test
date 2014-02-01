@@ -27,6 +27,10 @@ extern "C" {
 #if defined (HAVE_TERMIOS_H)
 	PORTTYPE serial_open(const char *port, int baud, struct termios *opts);
 	int		 serial_close(PORTTYPE fd, struct termios *opts);
+#if defined (HAVE_LINUX_SERIAL_H)
+	int      serial_set_xmit_fifo_size(PORTTYPE fd, int size);
+	int      serial_get_xmit_fifo_size(PORTTYPE fd);
+#endif
 #else
 	PORTTYPE serial_open(const char *port, int baud);
 	int		 serial_close(PORTTYPE fd);
