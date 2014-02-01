@@ -387,7 +387,7 @@ int main(int argc, char *argv[])
 	unsigned int *history = calloc(HISTLEN, sizeof(unsigned int));
 	unsigned int histsize = 0;
 	double bin_width = 0;
-	double bin_min = 0;
+	double bin_min = DBL_MIN;
 	unsigned int *histogram = NULL;
 
 	cnt_a = 0;
@@ -454,9 +454,9 @@ int main(int argc, char *argv[])
 
 		GetHighResolutionTime(&end);
 
-		double delay_ns = ConvertTimeDifferenceToSec(&end, &begin) * 1000.0;
+		double delay = ConvertTimeDifferenceToSec(&end, &begin) * 1000.0;
 
-		delays[cnt_a] = delay_ns;
+		delays[cnt_a] = delay;
 
 		time_t now = time(NULL);
 
@@ -466,16 +466,16 @@ int main(int argc, char *argv[])
 				printf("\n");
 		}
 
-		avg_a += delay_ns;
+		avg_a += delay;
 
-		if (delay_ns < min_a) min_a = delay_ns;
-		if (delay_ns > max_a) max_a = delay_ns;
+		if (delay < min_a) min_a = delay;
+		if (delay > max_a) max_a = delay;
 
-		printf(" %7d %8.2f %8.2f %8.2f %8.2f\r", cnt_a, delay_ns, min_a, max_a, avg_a / (double)cnt_a);
+		printf(" %7d %8.2f %8.2f %8.2f %8.2f\r", cnt_a, delay, min_a, max_a, avg_a / (double)cnt_a);
 
 		/* histogram */
 		if (cnt_a < HISTLEN) {
-			history[cnt_a] = delay_ns;
+			history[cnt_a] = delay;
 		} else if (cnt_a == HISTLEN) {
 			int j;
 			double stddev = 0;
@@ -504,7 +504,7 @@ int main(int argc, char *argv[])
 				histogram[bin]++;
 			}
 		} else {
-			int bin = RAIL(floor(((double)delay_ns - bin_min) / bin_width), 0, histsize);
+			int bin = RAIL(floor(((double)delay - bin_min) / bin_width), 0, histsize);
 			histogram[bin]++;
 		}
 
@@ -541,7 +541,7 @@ int main(int argc, char *argv[])
 
 		if (binlevel > 0) {
 			int dig = digits(max_a); char fmt[256];
-			snprintf(fmt, sizeof(fmt), " %%%d.2f .. %%%d.2f [ms]:%%%dd ", dig + 4, dig + 4, digits(cnt_a));
+			snprintf(fmt, sizeof(fmt), " %%%d.2f .. %%%d.2f [ms]: %%%dd ", dig + 4, dig + 4, digits(cnt_a));
 			for (i = 0; i <= histsize; ++i) {
 				double hmin, hmax;
 				if (i == 0) {
