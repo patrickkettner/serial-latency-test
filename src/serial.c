@@ -94,7 +94,7 @@ ssize_t serial_read(PORTTYPE fd, uint8_t *buf, size_t len)
 		}*/
 
 	// non-blocking read mode
-	fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
+	//fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
 
 	while (count < len) {
 		r = read(fd, buf + count, len - count);
@@ -117,7 +117,7 @@ ssize_t serial_read(PORTTYPE fd, uint8_t *buf, size_t len)
 		retry++;
 		if (retry > 10000) return -100; // no input
 	}
-	fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) & ~O_NONBLOCK);
+	//fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) & ~O_NONBLOCK);
 #endif
 
 	if (count != len) {
@@ -189,8 +189,8 @@ PORTTYPE serial_open(const char *port, int baud, struct termios *opts)
 
 	return fd;
 #else
-	fd = open(port, O_RDWR | O_NOCTTY);
-	//fd = open(port, O_RDWR | O_NOCTTY | O_NONBLOCK);
+	//fd = open(port, O_RDWR | O_NOCTTY);
+	fd = open(port, O_RDWR | O_NOCTTY | O_NONBLOCK);
 
 	if (fd == -1)  {
 		fprintf(stderr, "serial_open open() failed: %d: %s\n", errno, strerror(errno));
@@ -261,20 +261,16 @@ PORTTYPE serial_open(const char *port, int baud, struct termios *opts)
 		return 0;
 	}
 
-/*
-  int flags = fcntl(fd, F_GETFL);
-  if (fcntl(fd, F_SETFL, flags & (~O_NONBLOCK))) {
-  fprintf(stderr, "serial_open: fcntl() failed %d: %s\n", errno, strerror(errno));
-  return 0;
-  }
-*/
+	int flags = fcntl(fd, F_GETFL);
+	if (fcntl(fd, F_SETFL, flags & (~O_NONBLOCK))) {
+		fprintf(stderr, "serial_open: fcntl() failed %d: %s\n", errno, strerror(errno));
+		return 0;
+	}
 
-/*
 	if (tcflush(fd, TCIOFLUSH) < 0) {
 		fprintf(stderr, "serial_open: tcflush() failed %d: %s\n", errno, strerror(errno));
 		return 0;
 	}
-*/
 #endif
 
 #if defined (HAVE_LINUX_SERIAL_H)
