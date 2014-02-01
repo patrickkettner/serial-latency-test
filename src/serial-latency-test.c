@@ -86,6 +86,7 @@ static void usage(const char *argv0)
 		   "  -S, --samples=<int> to take for the measurement (default: 10000)\n"
 		   "  -w, --wait=ms		 time interval between measurements\n"
 		   "  -r, --random-wait	 use random interval between wait and 2*wait\n\n"
+           "  -o, --output=file  write the output to file\n\n"
 		   "  -h, --help		 this help\n"
 		   "  -V, --version		 print current version\n"
 		   "\n", argv0);
@@ -201,9 +202,9 @@ int main(int argc, char *argv[])
 	setvbuf(stderr, NULL, _IONBF, 0);
 
 #if defined (HAVE_SCHED_H)
-	static char short_options[] = "hVRP:p:b:S:w:r";
+	static char short_options[] = "hVRP:p:b:S:w:ro:";
 #else
-	static char short_options[] = "hVp:b:S:w:r";
+	static char short_options[] = "hVp:b:S:w:ro:";
 #endif
 
 	static struct option long_options[] = {
@@ -218,6 +219,7 @@ int main(int argc, char *argv[])
 		{"samples", 1, NULL, 'S'},
 		{"wait", 1, NULL, 'w'},
 		{"random-wait", 0, NULL, 'r'},
+		{"output", 1, NULL, 'o'},
 		{}
 	};
 
@@ -228,12 +230,15 @@ int main(int argc, char *argv[])
 	int nr_samples = 10000;
 	int random_wait = 0;
 	double wait = 0.0;
+	char output[PATH_MAX];
 
 	serial_t s;
 
 	s.fd   = 0;
 	s.baud = 9600;
 	snprintf(s.port, sizeof s.port, "%s", "");
+
+	snprintf(output, sizeof output, "%s", "");
 
 	int c;
 
@@ -288,6 +293,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'r':
 			random_wait = 1;
+			break;
+		case 'o':
+			strncpy(output, optarg, sizeof(output));
 			break;
 		default:
 			usage(argv[0]);
@@ -396,8 +404,23 @@ int main(int argc, char *argv[])
 		fatal("No delay was measured; clock has too low resolution");
 	}
 
-	unsigned int delay_hist[1000];
 	unsigned int i, j;
+
+	if (strlen(output)) {
+		FILE *fp = fopen(output, "w");
+
+		if (!fp) {
+			fatal("unable to open output file '%s'", output);
+		}
+
+		for (i = 0; i < sample_nr; ++i) {
+			fprintf(fp, "%10.2f\n", delays[i] / 1000000.0);
+		}
+
+		fclose(fp);
+	}
+
+	unsigned int delay_hist[1000];
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof *(a))
 
@@ -415,6 +438,7 @@ int main(int argc, char *argv[])
 		if (delay_hist[i] > max_samples)
 			max_samples = delay_hist[i];
 	}
+
 	if (!max_samples) {
 		fatal("(no measurements)");
 	}
