@@ -396,8 +396,6 @@ int main(int argc, char *argv[])
 	avg_a = 0;
 	var_m = var_s = 0;
 
-	unsigned int sample_nr = 0;
-
 	uint8_t *buf_rx = calloc(nr_count + 1, sizeof (uint8_t));
 	uint8_t *buf_tx = calloc(nr_count + 1, sizeof (uint8_t));
 
@@ -450,7 +448,7 @@ int main(int argc, char *argv[])
 
 		double delay_ns = ConvertTimeDifferenceToSec(&end, &begin) * 1000.0;
 
-		delays[sample_nr++] = delay_ns;
+		delays[cnt_a] = delay_ns;
 
 		time_t now = time(NULL);
 
@@ -512,8 +510,8 @@ int main(int argc, char *argv[])
 			fatal("unable to open output file '%s'", output);
 		}
 
-		for (i = 0; i < sample_nr; ++i) {
-			fprintf(fp, "%10.2f\n", delays[i] / 1000000.0);
+		for (i = 0; i < cnt_a; ++i) {
+			fprintf(fp, "%8.2f\n", delays[i]);
 		}
 
 		fclose(fp);
