@@ -407,6 +407,8 @@ int main(int argc, char *argv[])
 
 	time_t last = time(NULL);
 
+	int err = 0;
+
 	for (c = 0; c < nr_samples; ++c) {
 		if (wait) {
 			if (random_wait)
@@ -425,7 +427,12 @@ int main(int argc, char *argv[])
 
 		if (n != nr_count) {
 			fprintf(stderr, "serial_write() n = %d nr_count = %d\n", n, nr_count);
+			err = 1;
+			signal_received = 1;
 		}
+
+		if (signal_received)
+			break;
 
 		int rd = 0;
 
@@ -437,6 +444,7 @@ int main(int argc, char *argv[])
 			} else {
 				rd = 1;
 				signal_received = 1;
+				err = 1;
 				fprintf(stderr, "serial_read() n = %d nr_count = %d\n", n, nr_count);
 			}
 		}
@@ -517,7 +525,11 @@ int main(int argc, char *argv[])
 		fclose(fp);
 	}
 
-	printf("\n> done.\n\n");
+	if (!err) {
+		printf("\n> done.\n\n");
+	} else {
+		printf("\n> done (with errors).\n\n");
+	}
 
 	if (histsize > 0) {
 		printf("> latency distribution:\n\n");
@@ -529,7 +541,7 @@ int main(int argc, char *argv[])
 
 		if (binlevel > 0) {
 			int dig = digits(max_a); char fmt[256];
-			snprintf(fmt, sizeof(fmt), " %%%d.2f .. %%%d.2f [ms]:%%%dd ", dig + 3, dig + 3, digits(cnt_a));
+			snprintf(fmt, sizeof(fmt), " %%%d.2f .. %%%d.2f [ms]:%%%dd ", dig + 4, dig + 4, digits(cnt_a));
 			for (i = 0; i <= histsize; ++i) {
 				double hmin, hmax;
 				if (i == 0) {
@@ -549,13 +561,16 @@ int main(int argc, char *argv[])
 				printf("\n");
 			}
 		}
+
+		printf("\n");
+		printf(" best    latency was %.2f ms\n", min_a);
+		printf(" worst   latency was %.2f ms\n", max_a);
+		printf(" average latency was %.2f ms\n", avg_a / (double)cnt_a);
+		printf("\n");
 	}
 
 	free(histogram);
 	free(history);
-
-	printf("\n  best latency was %.2f ms\n", min_a);
-	printf(" worst latency was %.2f ms\n\n", max_a);
 
 	free(delays);
 	free(buf_rx);
