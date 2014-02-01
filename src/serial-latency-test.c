@@ -1,8 +1,29 @@
+/* Serial Latency Tester
+ *
+ * (C) 2013  Jakob Flierl <jakob.flierl@gmail.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ *
+ */
+
 #include "config.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <math.h>
 #include <limits.h>
 #include <float.h>
 #include <signal.h>
@@ -25,9 +46,29 @@
 
 #define DEBUG 1
 
+#define HISTLEN  10
+#define TERMWIDTH 50
+
+#ifndef SQUARE
+#define SQUARE(a) ( (a) * (a) )
+#endif
+
+#ifndef MIN
+#define MIN(a,b) ( (a) < (b) ? (a) : (b) )
+#endif
+
+#ifndef MAX
+#define MAX(a,b) ( (a) > (b) ? (a) : (b) )
+#endif
+
+#ifndef RAIL
+#define RAIL(v, min, max) (MIN((max), MAX((min), (v))))
+#endif
+
+static int printinterval = 1;
+
 static volatile sig_atomic_t signal_received = 0;
 
-/* prints an error message to stderr, and dies */
 static void fatal(const char *msg, ...)
 {
 	va_list ap;
@@ -128,7 +169,7 @@ static int getRandomNumber(void)
 
 static void sighandler(int sig)
 {
-	fprintf(stderr,"caught signal - shutting down.\n");
+	fprintf(stderr,"\n\n> caught signal - shutting down.\n");
 	signal_received = 1;
 }
 
@@ -140,6 +181,16 @@ typedef struct {
 	struct termios opts;
 #endif
 } serial_t;
+
+int digits(double number) {
+	int digits = 1, pten = 10;
+
+	while (pten <= number) {
+		digits++; pten *= 10;
+	}
+
+	return digits;
+}
 
 int main(int argc, char *argv[])
 {
@@ -279,6 +330,7 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
+	printf("> ");
 	print_version();
 
 #if defined (HAVE_SYS_UTSNAME_H)
@@ -318,8 +370,8 @@ int main(int argc, char *argv[])
 
 	timerStruct begin, end;
 
-	printf("\n> sampling %d latency values - please wait ...\n", nr_samples);
-	printf("> press Ctrl+C to end test.\n");
+	printf("\n> sampling %d latency values - please wait..\n", nr_samples);
+	printf("   event     curr      min      max      avg [ms]\n");
 
 	signal(SIGINT,	sighandler);
 	signal(SIGTERM, sighandler);
@@ -327,8 +379,24 @@ int main(int argc, char *argv[])
 	double *delays = calloc(nr_samples + 1, sizeof *delays);
 	check_mem(delays);
 
+	int cnt_a;
+	double min_a, max_a;
+	double avg_a;
+	double var_m, var_s;
+
+	unsigned int *history = calloc(HISTLEN, sizeof(unsigned int));
+	unsigned int histsize = 0;
+	double bin_width = 0;
+	double bin_min = 0;
+	unsigned int *histogram = NULL;
+
+	cnt_a = 0;
+	min_a = DBL_MAX;
+	max_a = 0;
+	avg_a = 0;
+	var_m = var_s = 0;
+
 	unsigned int sample_nr = 0;
-	double min_delay = DBL_MAX, max_delay = 0;
 
 	uint8_t *buf_rx = calloc(nr_count + 1, sizeof (uint8_t));
 	uint8_t *buf_tx = calloc(nr_count + 1, sizeof (uint8_t));
@@ -338,6 +406,8 @@ int main(int argc, char *argv[])
 	for (i = 0; i < nr_count; ++i) {
 		buf_tx[i] = i % 255;
 	}
+
+	time_t last = time(NULL);
 
 	for (c = 0; c < nr_samples; ++c) {
 		if (wait) {
@@ -378,27 +448,61 @@ int main(int argc, char *argv[])
 
 		GetHighResolutionTime(&end);
 
-		double delay_ns = ConvertTimeDifferenceToSec(&end, &begin) * 1000000000.0;
-		if (delay_ns > max_delay) {
-			max_delay = delay_ns;
-			if (DEBUG)
-				printf("%6u; %10.2f; %10.2f		\n",
-					   sample_nr, delay_ns / 1000000.0, max_delay / 1000000.0);
-		} else {
-			if (DEBUG)
-				printf("%6u; %10.2f; %10.2f		\r",
-					   sample_nr, delay_ns / 1000000.0, max_delay / 1000000.0);
-		}
-		if (delay_ns < min_delay)
-			min_delay = delay_ns;
+		double delay_ns = ConvertTimeDifferenceToSec(&end, &begin) * 1000.0;
 
 		delays[sample_nr++] = delay_ns;
-	}
 
-	printf("\n> done.\n\n> latency distribution:\n");
+		time_t now = time(NULL);
 
-	if (!max_delay) {
-		fatal("No delay was measured; clock has too low resolution");
+		if (printinterval > 0 && now >= last + printinterval) {
+			last = now;
+			if (cnt_a > 0)
+				printf("\n");
+		}
+
+		avg_a += delay_ns;
+
+		if (delay_ns < min_a) min_a = delay_ns;
+		if (delay_ns > max_a) max_a = delay_ns;
+
+		printf(" %7d %8.2f %8.2f %8.2f %8.2f\r", cnt_a, delay_ns, min_a, max_a, avg_a / (double)cnt_a);
+
+		/* histogram */
+		if (cnt_a < HISTLEN) {
+			history[cnt_a] = delay_ns;
+		} else if (cnt_a == HISTLEN) {
+			int j;
+			double stddev = 0;
+			const double avg = avg_a / (double)HISTLEN;
+			for (j = 0; j < HISTLEN; ++j) {
+				stddev += SQUARE((double)history[j] - avg);
+			}
+			stddev = sqrt(stddev/(double)HISTLEN);
+			// Scott's normal reference rule
+			bin_width = 3.5 * stddev * pow(HISTLEN, -1.0/3.0);
+			int k = ceil((double)(max_a - min_a) / bin_width);
+
+			bin_min = min_a;
+			if (bin_min > bin_width) { k++; bin_min -= bin_width; }
+			if (bin_min > bin_width) { k++; bin_min -= bin_width; }
+			histsize = k+2;
+
+/*
+			if (printinterval > 0) {
+				printf("\n -- initializing histogram with %d bins (min:%.2f w:%.2f [samples]) --\n", histsize, bin_min, bin_width);
+			}
+*/
+			histogram = calloc(histsize + 1,sizeof(unsigned int));
+			for (j = 0; j < HISTLEN; ++j) {
+				int bin = RAIL(floor(((double)history[j] - bin_min) / bin_width), 0, histsize);
+				histogram[bin]++;
+			}
+		} else {
+			int bin = RAIL(floor(((double)delay_ns - bin_min) / bin_width), 0, histsize);
+			histogram[bin]++;
+		}
+
+		cnt_a++;
 	}
 
 	if (strlen(output)) {
@@ -415,52 +519,45 @@ int main(int argc, char *argv[])
 		fclose(fp);
 	}
 
-	unsigned int j;
-	unsigned int delay_hist[1000];
+	printf("\n> done.\n\n");
 
-#define ARRAY_SIZE(a) (sizeof(a) / sizeof *(a))
+	if (histsize > 0) {
+		printf("> latency distribution:\n\n");
+		int i,j;
+		int binlevel = 0;
+		for (i = 0; i < histsize; ++i) {
+			if (histogram[i] > binlevel) binlevel = histogram[i];
+		}
 
-	for (i = 0; i < ARRAY_SIZE(delay_hist); ++i)
-		delay_hist[i] = 0;
-	for (i = 0; i < sample_nr; ++i) {
-		unsigned int index = (delays[i] + 50000.0) / 100000.0;
-		if (index >= ARRAY_SIZE(delay_hist))
-			index = ARRAY_SIZE(delay_hist) - 1;
-		delay_hist[index]++;
-	}
-
-	unsigned int max_samples = 0;
-	for (i = 0; i < ARRAY_SIZE(delay_hist); ++i) {
-		if (delay_hist[i] > max_samples)
-			max_samples = delay_hist[i];
-	}
-
-	if (!max_samples) {
-		fatal("(no measurements)");
-	}
-
-	// plot ascii bars
-	int skipped = 0;
-	for (i = 0; i < ARRAY_SIZE(delay_hist); ++i) {
-		if (delay_hist[i] > 0) {
-			if (skipped) {
-				puts("...");
-				skipped = 0;
+		if (binlevel > 0) {
+			int dig = digits(max_a); char fmt[256];
+			snprintf(fmt, sizeof(fmt), " %%%d.2f .. %%%d.2f [ms]:%%%dd ", dig + 3, dig + 3, digits(cnt_a));
+			for (i = 0; i <= histsize; ++i) {
+				double hmin, hmax;
+				if (i == 0) {
+					hmin = 0.0;
+					hmax = bin_min;
+				} else if (i == histsize) {
+					hmin = bin_min + (double)(i-1) * bin_width;
+					hmax = INFINITY;
+				} else {
+					hmin = bin_min + (double)(i-1) * bin_width;
+					hmax = bin_min + (double)(i) * bin_width;
+				}
+				printf(fmt, hmin, hmax, histogram[i]);
+				int bar_width = (histogram[i] * TERMWIDTH ) / binlevel;
+				if (bar_width == 0 && histogram[i] > 0) bar_width = 1;
+				for (j = 0; j < bar_width; ++j) printf("#");
+				printf("\n");
 			}
-			printf("%5.1f -%5.1f ms: %8u ", i/10.0, i/10.0 + 0.09, delay_hist[i]);
-			unsigned int bar_width = (delay_hist[i] * 50 + max_samples / 2) / max_samples;
-			if (!bar_width && delay_hist[i])
-				bar_width = 1;
-			for (j = 0; j < bar_width; ++j)
-				printf("#");
-			puts("");
-		} else {
-			skipped = 1;
 		}
 	}
 
-	printf("\n  best latency was %.2f msec\n", min_delay / 1000000.0);
-	printf(" worst latency was %.2f msec\n\n", max_delay / 1000000.0);
+	free(histogram);
+	free(history);
+
+	printf("\n  best latency was %.2f ms\n", min_a);
+	printf(" worst latency was %.2f ms\n\n", max_a);
 
 	free(delays);
 	free(buf_rx);
