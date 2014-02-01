@@ -9,6 +9,8 @@ include/config.h
 include/Makefile
 include/Makefile.in
 
+include/config.h.in
+
 Makefile.in
 Makefile
 
