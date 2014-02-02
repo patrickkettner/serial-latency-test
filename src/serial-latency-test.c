@@ -24,6 +24,11 @@
 #include <stdlib.h>
 
 #include <math.h>
+
+#ifndef INFINITY
+#define INFINITY (1.0/0.0)
+#endif 
+
 #include <limits.h>
 #include <float.h>
 #include <signal.h>
