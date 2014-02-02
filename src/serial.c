@@ -23,7 +23,11 @@
 #include <asm/ioctls.h>
 #endif
 
-#define DBG 0
+// #define DBG(M, ...)
+#define DBG(M, ...) fprintf(stderr, "%s:%d: " M "\n", __FILE__, __LINE__, ##__VA_ARGS__)
+
+#define clean_errno() (errno == 0 ? "None" : strerror(errno))
+#define log_err(M, ...) fprintf(stderr, "%s:%d: errno: %s " M "\n", __FILE__, __LINE__, clean_errno(), ##__VA_ARGS__)
 
 ssize_t serial_writebyte(PORTTYPE fd, uint8_t byte)
 {
@@ -42,7 +46,7 @@ ssize_t serial_write(PORTTYPE fd, const uint8_t *buf, size_t len)
 	ssize_t n = write(fd, buf, len);
 
 	if (n != len) {
-		if (DBG) fprintf(stderr, "serial_write() len=%ld, n=%ld, error=%d %s\n", len, n, errno, strerror(errno));
+		DBG("len=%ld, n=%ld, error=%d %s", len, n, errno, strerror(errno));
 	}
 
 	if (n != len) return -1;
@@ -69,7 +73,7 @@ ssize_t serial_read(PORTTYPE fd, uint8_t *buf, size_t len)
 	while (count < len) {
 		r = ReadFile(fd, buf + count, len - count, &n, NULL);
 		if (!r) {
-			fprintf(stderr, "serial_read() read error r=%d count=%ld len=%ld\n", r, count, len);
+			log_err(("read error r=%d count=%ld len=%ld\n", r, count, len);
 			return 0;
 		}
 		if (n > 0) count += n;
@@ -87,10 +91,14 @@ ssize_t serial_read(PORTTYPE fd, uint8_t *buf, size_t len)
 	int r;
 	int retry = 0;
 
-	if (len > sizeof(buf) || len < 1) return -1;
+	/*
+	if (len > sizeof(buf) || len < 1) {
+		fprintf(stderr, "serial_read() len=%d sizeof(buf)=%ld\n", len, sizeof(buf));
+		return -1;
+		}*/
 
 	// non-blocking read mode
-	fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
+	//fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
 
 	while (count < len) {
 		r = read(fd, buf + count, len - count);
@@ -106,18 +114,18 @@ ssize_t serial_read(PORTTYPE fd, uint8_t *buf, size_t len)
 			t.tv_sec = 1;
 			t.tv_usec = 0;
 			r = select(fd+1, &fds, NULL, NULL, &t);
-			//printf("select, r = %d\n", r);
+			// printf("select, r = %d\n", r);
 			if (r < 0) return -1;
 			if (r == 0) return count; // timeout
 		}
 		retry++;
-		if (retry > 1000) return -100; // no input
+		if (retry > 10000) return -100; // no input
 	}
-	fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) & ~O_NONBLOCK);
+	//fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) & ~O_NONBLOCK);
 #endif
 
 	if (count != len) {
-		if (DBG) fprintf(stderr, "serial_read() len=%ld, n=%ld, error=%d %s\n", len, count, errno, strerror(errno));
+		DBG("len=%ld, n=%ld, error=%d %s", len, count, errno, strerror(errno));
 	}
 
 	return count;
@@ -131,10 +139,10 @@ PORTTYPE serial_open(const char *port, int baud, struct termios *opts)
 {
 	PORTTYPE fd;
 
-	if (DBG) fprintf(stderr, "serial_open: opening port %s @ %d bps\n", port, baud);
+	DBG("opening port %s @ %d bps", port, baud);
 
 	if (!strlen(port)) {
-		fprintf(stderr, "serial_open: invalid port name.\n");
+		log_err("invalid port name %s", port);
 		return 0;
 	}
 
@@ -153,7 +161,7 @@ PORTTYPE serial_open(const char *port, int baud, struct termios *opts)
 	fd = CreateFile(portname, GENERIC_READ | GENERIC_WRITE,
 					0, 0, OPEN_EXISTING, 0, NULL);
 	if (fd == INVALID_HANDLE_VALUE) {
-		fprintf(stderr, "unable to open port %s\n", port);
+		log_err("unable to open port %s\n", port);
 		return 0;
 	}
 
@@ -185,24 +193,24 @@ PORTTYPE serial_open(const char *port, int baud, struct termios *opts)
 
 	return fd;
 #else
-	fd = open(port, O_RDWR | O_NOCTTY);
-	//fd = open(port, O_RDWR | O_NOCTTY | O_NONBLOCK);
+	//fd = open(port, O_RDWR | O_NOCTTY);
+	fd = open(port, O_RDWR | O_NOCTTY | O_NONBLOCK);
 
 	if (fd == -1)  {
-		fprintf(stderr, "serial_open open() failed: %d: %s\n", errno, strerror(errno));
+		log_err("open() failed");
 		return 0;
 	}
 
 #if defined (HAVE_TERMIOS_H)
 	if (tcgetattr(fd, opts) < 0) {
-		fprintf(stderr, "serial_open: tcgetattr() failed %d: %s\n", errno, strerror(errno));
+		log_err("tcgetattr() failed");
 		return 0;
 	}
 
 	struct termios toptions;
 
 	if (tcgetattr(fd, &toptions) < 0) {
-		fprintf(stderr, "serial_open: tcgetattr() failed %d: %s\n", errno, strerror(errno));
+		log_err("tcgetattr()");
 		return 0;
 	}
 
@@ -221,7 +229,7 @@ PORTTYPE serial_open(const char *port, int baud, struct termios *opts)
 
 #undef B
 	default:
-		fprintf(stderr, "serial_open: unknown baud rate %d\n", baud);
+		log_err("unknown baud rate %d", baud);
 		return 0;
 		break;
 	}
@@ -249,46 +257,26 @@ PORTTYPE serial_open(const char *port, int baud, struct termios *opts)
 	toptions.c_oflag &= ~OPOST;
 
 	// see: http://unixwiz.net/techtips/termios-vmin-vtime.html
-	toptions.c_cc[VMIN]	 = 0;
-	toptions.c_cc[VTIME] = 100;
+	toptions.c_cc[VMIN]	 = 1;
+	toptions.c_cc[VTIME] = 0;
 
 	if (tcsetattr(fd, TCSANOW, &toptions) < 0) {
-		fprintf(stderr, "serial_open: tcsetattr() failed %d: %s\n", errno, strerror(errno));
+		log_err("tcsetattr() failed");
 		return 0;
 	}
 
-/*
-  int flags = fcntl(fd, F_GETFL);
-  if (fcntl(fd, F_SETFL, flags & (~O_NONBLOCK))) {
-  fprintf(stderr, "serial_open: fcntl() failed %d: %s\n", errno, strerror(errno));
-  return 0;
-  }
-*/
+	int flags = fcntl(fd, F_GETFL);
+	if (fcntl(fd, F_SETFL, flags & (~O_NONBLOCK))) {
+		log_err("fcntl() failed");
+		return 0;
+	}
 
 	if (tcflush(fd, TCIOFLUSH) < 0) {
-		fprintf(stderr, "serial_open: tcflush() failed %d: %s\n", errno, strerror(errno));
+		log_err("tcflush() failed");
 		return 0;
 	}
 #endif
 
-#if defined (HAVE_LINUX_SERIAL_H)
-	struct serial_struct ser_info;
-
-	// Linux-specific: enable low latency mode (FTDI "nagling off")
-
-	if (ioctl(fd, TIOCGSERIAL, &ser_info) < 0) {
-		fprintf(stderr, "serial_open: ioctl(TIOCGSERIAL) failed %d: %s\n", errno, strerror(errno));
-		return -1;
-	}
-
-	ser_info.flags |= ASYNC_LOW_LATENCY;
-
-	if (ioctl(fd, TIOCSSERIAL, &ser_info) < 0) {
-		// fprintf(stderr, "serial_open: ioctl(TIOCSSERIAL) failed %d: %s\n", errno, strerror(errno));
-	} else {
-		fprintf(stderr, "serial_open: set ASYNC_LOW_LATENCY mode.\n");
-	}
-#endif
 #endif
 	return fd;
 }
@@ -299,11 +287,9 @@ int serial_close(PORTTYPE fd, struct termios *opts)
 	int serial_close(PORTTYPE fd)
 #endif
 {
-/*
   if (tcsetattr(fd, TCSANOW, opts) < 0) {
-  fprintf(stderr, "serial_close: tcsetattr() failed %d: %s\n", errno, strerror(errno));
+	  log_err("tcsetattr() failed");
   }
-*/
 
 #if defined (_WIN32)
 	CloseHandle(fd);
@@ -311,3 +297,57 @@ int serial_close(PORTTYPE fd, struct termios *opts)
 	return close(fd);
 #endif
 }
+
+#if defined (ASYNC_LOW_LATENCY)
+int serial_set_low_latency(PORTTYPE fd) {
+	struct serial_struct ser_info;
+
+	if (ioctl(fd, TIOCGSERIAL, &ser_info) < 0) {
+		log_err("ioctl(TIOCGSERIAL) failed");
+		return -1;
+	}
+
+	ser_info.flags |= ASYNC_LOW_LATENCY;
+
+	if (ioctl(fd, TIOCSSERIAL, &ser_info) < 0) {
+		log_err("ioctl(TIOCSSERIAL) failed");
+	} else {
+		DBG("set ASYNC_LOW_LATENCY mode.");
+	}
+
+	return 0;
+}
+#endif
+
+#if defined (HAVE_LINUX_SERIAL_H)
+int serial_set_xmit_fifo_size(PORTTYPE fd, int size) {
+	struct serial_struct ser_info;
+
+	if (ioctl(fd, TIOCGSERIAL, &ser_info) < 0) {
+		log_err("ioctl(TIOCGSERIAL) failed");
+		return -1;
+	}
+
+	DBG("xmit_fifo_size was %d\n", ser_info.xmit_fifo_size);
+
+	ser_info.xmit_fifo_size = size;
+
+	if (ioctl(fd, TIOCSSERIAL, &ser_info) < 0) {
+		log_err("ioctl(TIOCSSERIAL) failed");
+		return -1;
+	}
+
+	return 0;
+}
+
+int serial_get_xmit_fifo_size(PORTTYPE fd) {
+	struct serial_struct ser_info;
+
+	if (ioctl(fd, TIOCGSERIAL, &ser_info) < 0) {
+		log_err("ioctl(TIOCGSERIAL) failed");
+		return -1;
+	}
+
+	return ser_info.xmit_fifo_size;
+}
+#endif
