@@ -2,7 +2,7 @@ Source: serial-latency-test
 Section: utils
 Priority: optional
 Maintainer: Jakob Flierl <jakob.flierl@gmail.com>
-Build-Depends: debhelper (>= 6), libtool, autotools-dev, automake, dh-autoreconf, autopoint
+Build-Depends: debhelper (>= 6), libtool, autotools-dev, automake, dh-autoreconf, autopoint, help2man, autogen
 Standards-Version: 3.9.4
 Homepage: http://github.com/koppi/serial-latency-test
 
