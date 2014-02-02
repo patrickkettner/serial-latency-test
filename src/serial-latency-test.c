@@ -386,7 +386,7 @@ int main(int argc, char *argv[])
         if (serial_set_low_latency(s.fd) < 0) {
             fatal("Unable to set ASYNC_LOW_LATENCY on %s", s.port);
         } else {
-            printf("> set ASYNC_LOW_LATENCY to %s\n", s.port);
+            printf("> set flag ASYNC_LOW_LATENCY to %d on %s\n", async_low_latency, s.port);
         }
     }
 #endif

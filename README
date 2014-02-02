@@ -4,20 +4,9 @@ serial-latency-test measures the roundtrip time of packets sent over
 the serial port. It calculates the worst case roundtrip time of all
 sent packets and displays a histogram of the rountrip time jitter.
 
-== Compile, install and run (Debian/Ubuntu) ==
+== Compile, install and run ==
 
-The following libraries are required to build serial-latency-test:
-
- * debhelper (>= 5)
- * autotools-dev
- * automake
-
-Compile and install serial-latency-test as follows:
-
- $ sh autogen.sh
- $ ./configure
- $ make
- $ sudo make install
+See https://github.com/koppi/serial-latency-test/wiki
 
 Run serial-latency-test as follows:
 
@@ -26,15 +15,6 @@ Run serial-latency-test as follows:
    This runs the benchmark on the given serial port with the given baud rate.
    Note, that the RX and TX have to be connected using a cable in the real
    hardware to loop the sent packets back.
-
-== Cross-compile and run (mingw32/wine) ==
-
- $ sudo apt-get -y install mingw32 mingw32-binutils mingw32-runtime
- $ ./configure --build=i686-linux --host=i586-mingw32msvc
- $ sudo apt-get -y install wine
- $ mkdir -p ~/.wine/dosdevices && cd ~/.wine/dosdevices
- $ ln -s /dev/ttyUSB0 com1
- $ wine serial-latency-test.exe -p COM1: -b 9600
 
 == Authors ==
 
