@@ -18,16 +18,20 @@ use realtime scheduling (default: no)
 .TP
 \fB\-P\fR, \fB\-\-priority\fR=\fIint\fR scheduling priority, use with \fB\-R\fR
 (default: 99)
-.HP
-\fB\-S\fR, \fB\-\-samples=\fR<int> to take for the measurement (default: 10000)
 .TP
-\fB\-c\fR, \fB\-\-count=\fR<int>
+\fB\-S\fR, \fB\-\-samples\fR=\fIint\fR
+to take for the measurement (default: 10000)
+.TP
+\fB\-c\fR, \fB\-\-count\fR=\fIint\fR
 number of bytes to send per sample (default: 1)
 .TP
 \fB\-w\fR, \fB\-\-wait\fR=\fIms\fR
 time interval between measurements
 .TP
-\fB\-x\fR  \fB\-\-xmit=\fR<int>
+\fB\-a\fR, \fB\-\-async\fR
+set ASYNC_LOW_LATENCY flag (default: no)
+.TP
+\fB\-x\fR  \fB\-\-xmit\fR=\fIint\fR
 set xmit_fifo_size to given number (default: 0)
 .TP
 \fB\-r\fR, \fB\-\-random\-wait\fR

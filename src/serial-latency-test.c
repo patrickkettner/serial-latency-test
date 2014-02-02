@@ -42,6 +42,11 @@
 #endif
 
 #include "hr_timer.h"
+
+#if defined (HAVE_LINUX_SERIAL_H)
+#include <linux/serial.h>
+#endif
+
 #include "serial.h"
 
 #define DEBUG 1
