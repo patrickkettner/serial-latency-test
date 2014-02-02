@@ -73,7 +73,7 @@ ssize_t serial_read(PORTTYPE fd, uint8_t *buf, size_t len)
 	while (count < len) {
 		r = ReadFile(fd, buf + count, len - count, &n, NULL);
 		if (!r) {
-			log_err(("read error r=%d count=%ld len=%ld\n", r, count, len);
+			log_err("read error r=%d count=%ld len=%ld", r, count, len);
 			return 0;
 		}
 		if (n > 0) count += n;
@@ -161,7 +161,7 @@ PORTTYPE serial_open(const char *port, int baud, struct termios *opts)
 	fd = CreateFile(portname, GENERIC_READ | GENERIC_WRITE,
 					0, 0, OPEN_EXISTING, 0, NULL);
 	if (fd == INVALID_HANDLE_VALUE) {
-		log_err("unable to open port %s\n", port);
+		log_err("unable to open port %s", port);
 		return 0;
 	}
 
@@ -287,9 +287,12 @@ int serial_close(PORTTYPE fd, struct termios *opts)
 	int serial_close(PORTTYPE fd)
 #endif
 {
+
+#if defined (HAVE_TERMIOS_H)
   if (tcsetattr(fd, TCSANOW, opts) < 0) {
 	  log_err("tcsetattr() failed");
   }
+#endif
 
 #if defined (_WIN32)
 	CloseHandle(fd);
