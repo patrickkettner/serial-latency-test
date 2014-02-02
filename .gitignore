@@ -4,6 +4,8 @@ serial-latency-test
 src/Makefile
 src/Makefile.in
 
+m4/*.m4
+
 m4/Makefile
 m4/Makefile.in
 
