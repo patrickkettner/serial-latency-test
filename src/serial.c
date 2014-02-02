@@ -257,8 +257,8 @@ PORTTYPE serial_open(const char *port, int baud, struct termios *opts)
 	toptions.c_oflag &= ~OPOST;
 
 	// see: http://unixwiz.net/techtips/termios-vmin-vtime.html
-	toptions.c_cc[VMIN]	 = 1;
-	toptions.c_cc[VTIME] = 0;
+	toptions.c_cc[VMIN]	 = 0;
+	toptions.c_cc[VTIME] = 10;
 
 	if (tcsetattr(fd, TCSANOW, &toptions) < 0) {
 		log_err("tcsetattr() failed");

@@ -182,7 +182,8 @@ static int getRandomNumber(void)
 
 static void sighandler(int sig)
 {
-    fprintf(stderr,"\n\n> caught signal - shutting down.\n");
+	if (!signal_received)
+		fprintf(stderr,"\n\n> caught signal - shutting down.\n");
     signal_received = 1;
 }
 
