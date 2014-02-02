@@ -16,26 +16,27 @@ baud rate (default: 9600)
 \fB\-R\fR, \fB\-\-realtime\fR
 use realtime scheduling (default: no)
 .TP
-\fB\-P\fR, \fB\-\-priority\fR=\fIint\fR scheduling priority, use with \fB\-R\fR
+\fB\-P\fR, \fB\-\-priority\fR=\fIn\fR
+scheduling priority, use with \fB\-R\fR
 (default: 99)
 .TP
-\fB\-S\fR, \fB\-\-samples\fR=\fIint\fR
+\fB\-S\fR, \fB\-\-samples\fR=\fIn\fR
 to take for the measurement (default: 10000)
 .TP
-\fB\-c\fR, \fB\-\-count\fR=\fIint\fR
+\fB\-c\fR, \fB\-\-count\fR=\fIn\fR
 number of bytes to send per sample (default: 1)
 .TP
 \fB\-w\fR, \fB\-\-wait\fR=\fIms\fR
-time interval between measurements
+time interval between measurements (default: 0)
+.TP
+\fB\-r\fR, \fB\-\-random\-wait\fR
+use random interval between wait and 2*wait
 .TP
 \fB\-a\fR, \fB\-\-async\fR
 set ASYNC_LOW_LATENCY flag (default: no)
 .TP
-\fB\-x\fR  \fB\-\-xmit\fR=\fIint\fR
+\fB\-x\fR  \fB\-\-xmit\fR=\fIn\fR
 set xmit_fifo_size to given number (default: 0)
-.TP
-\fB\-r\fR, \fB\-\-random\-wait\fR
-use random interval between wait and 2*wait
 .TP
 \fB\-o\fR, \fB\-\-output\fR=\fIfile\fR
 write the output to file

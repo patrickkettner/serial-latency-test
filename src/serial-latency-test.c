@@ -131,19 +131,19 @@ static void usage(const char *argv0)
            "  -b, --baud=baud    baud rate (default: 9600)\n"
 #if defined (HAVE_SCHED_H)
            "  -R, --realtime     use realtime scheduling (default: no)\n"
-           "  -P, --priority=int scheduling priority, use with -R\n"
+           "  -P, --priority=n   scheduling priority, use with -R\n"
            "                     (default: 99)\n\n"
 #endif
-           "  -S, --samples=int  to take for the measurement (default: 10000)\n"
-           "  -c, --count=int    number of bytes to send per sample (default: 1)\n"
-           "  -w, --wait=ms      time interval between measurements\n"
+           "  -S, --samples=n    to take for the measurement (default: 10000)\n"
+           "  -c, --count=n      number of bytes to send per sample (default: 1)\n"
+           "  -w, --wait=ms      time interval between measurements (default: 0)\n"
+           "  -r, --random-wait  use random interval between wait and 2*wait\n\n"
 #if defined (HAVE_LINUX_SERIAL_H)
 #if defined (ASYNC_LOW_LATENCY)
            "  -a, --async        set ASYNC_LOW_LATENCY flag (default: no)\n"
 #endif
-           "  -x  --xmit=int     set xmit_fifo_size to given number (default: 0)\n"
+           "  -x  --xmit=n       set xmit_fifo_size to given number (default: 0)\n"
 #endif
-           "  -r, --random-wait  use random interval between wait and 2*wait\n\n"
            "  -o, --output=file  write the output to file\n\n"
            "  -h, --help         this help\n"
            "  -V, --version      print current version\n\n"
@@ -223,13 +223,13 @@ int main(int argc, char *argv[])
         {"samples", required_argument, NULL, 'S'},
         {"count", required_argument, NULL, 'c'},
         {"wait", required_argument, NULL, 'w'},
+        {"random-wait", no_argument, NULL, 'r'},
 #if defined (HAVE_LINUX_SERIAL_H)
 #if defined (ASYNC_LOW_LATENCY)
         {"async", no_argument, NULL, 'a'},
 #endif
         {"xmit", required_argument, NULL, 'x'},
 #endif
-        {"random-wait", no_argument, NULL, 'r'},
         {"output", required_argument, NULL, 'o'},
         {}
     };
@@ -272,13 +272,13 @@ int main(int argc, char *argv[])
                             "S:"  /* samples */
                             "c:"  /* count */
                             "w:"  /* wait */
+                            "r"   /* random-wait */
 #if defined (HAVE_LINUX_SERIAL_H)
 #if defined (ASYNC_LOW_LATENCY)
                             "a"   /* async */
 #endif
                             "x:"  /* xmit */
 #endif
-                            "r"   /* random-wait */
                             "o:", /* output */
                             long_options, NULL)) != -1) {
         switch (c) {
