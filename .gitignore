@@ -1,4 +1,5 @@
-debian/files
+
+serial-latency-test
 
 src/Makefile
 src/Makefile.in
@@ -16,6 +17,14 @@ include/config.h.in
 Makefile.in
 Makefile
 
+# debian stuff
+
+debian/files
+debian/autoreconf.after
+debian/autoreconf.before
+debian/serial-latency-test.debhelper.log
+debian/serial-latency-test.substvars
+
 # http://www.gnu.org/software/autoconf
 
 /config.log
@@ -28,6 +37,9 @@ Makefile
 /install-sh
 /missing
 /stamp-h1
+
+# backup files
+*~
 
 # Object files
 *.o
@@ -52,6 +64,3 @@ Makefile
 *.i*86
 *.x86_64
 *.hex
-
-# output
-serial-latency-test

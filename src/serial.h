@@ -30,6 +30,9 @@ extern "C" {
 #if defined (HAVE_LINUX_SERIAL_H)
 	int      serial_set_xmit_fifo_size(PORTTYPE fd, int size);
 	int      serial_get_xmit_fifo_size(PORTTYPE fd);
+#if defined (ASYNC_LOW_LATENCY)
+	int      serial_set_low_latency(PORTTYPE fd);
+#endif
 #endif
 #else
 	PORTTYPE serial_open(const char *port, int baud);

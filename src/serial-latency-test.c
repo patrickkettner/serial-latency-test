@@ -128,6 +128,9 @@ static void usage(const char *argv0)
            "  -c, --count=<int>  number of bytes to send per sample (default: 1)\n"
 		   "  -w, --wait=ms		 time interval between measurements\n"
 #if defined (HAVE_LINUX_SERIAL_H)
+#if defined (ASYNC_LOW_LATENCY)
+		   "  -a, --async        set ASYNC_LOW_LATENCY flag (default: no)\n"
+#endif
 		   "  -x  --xmit=<int>   set xmit_fifo_size to given number (default: 0)\n"
 #endif
 		   "  -r, --random-wait	 use random interval between wait and 2*wait\n\n"
@@ -210,6 +213,9 @@ int main(int argc, char *argv[])
 		{"count", required_argument, NULL, 'c'},
 		{"wait", required_argument, NULL, 'w'},
 #if defined (HAVE_LINUX_SERIAL_H)
+#if defined (ASYNC_LOW_LATENCY)
+		{"async", no_argument, NULL, 'a'},
+#endif
 		{"xmit", required_argument, NULL, 'x'},
 #endif
 		{"random-wait", no_argument, NULL, 'r'},
@@ -222,6 +228,9 @@ int main(int argc, char *argv[])
 	int rt_prio = sched_get_priority_max(SCHED_FIFO);
 #endif
 #if defined (HAVE_LINUX_SERIAL_H)
+#if defined (ASYNC_LOW_LATENCY)
+	int async_low_latency = 0;
+#endif
 	int xmit_fifo_size = 0;
 #endif
 	int nr_samples = 10000;
@@ -253,6 +262,9 @@ int main(int argc, char *argv[])
 							"c:"  /* count */
 							"w:"  /* wait */
 #if defined (HAVE_LINUX_SERIAL_H)
+#if defined (ASYNC_LOW_LATENCY)
+							"a"   /* async */
+#endif
 							"x:"  /* xmit */
 #endif
 							"r"   /* random-wait */
@@ -309,6 +321,11 @@ int main(int argc, char *argv[])
 			}
 			break;
 #if defined(HAVE_LINUX_SERIAL_H)
+#if defined (ASYNC_LOW_LATENCY)
+		case 'a':
+			async_low_latency = 1;
+			break;
+#endif
 		case 'x':
 			xmit_fifo_size = atoi(optarg);
 			break;
@@ -359,11 +376,21 @@ int main(int argc, char *argv[])
 	}
 
 #if defined (HAVE_LINUX_SERIAL_H)
+#if defined (ASYNC_LOW_LATENCY)
+	if (async_low_latency) {
+		if (serial_set_low_latency(s.fd) < 0) {
+			fatal("Unable to set ASYNC_LOW_LATENCY on %s", s.port);
+		} else {
+			printf("> set ASYNC_LOW_LATENCY to %s\n", s.port);
+		}
+	}
+#endif
+
 	if (xmit_fifo_size > 0) {
 		if (serial_set_xmit_fifo_size(s.fd, xmit_fifo_size) < 0) {
 			fatal("Unable to set xmit_fifo_size %d on %s", xmit_fifo_size, s.port);
 		} else {
-			printf("> set xmit_fifo_size to %d\n", serial_get_xmit_fifo_size(s.fd));
+			printf("> set xmit_fifo_size to %d on %s\n", serial_get_xmit_fifo_size(s.fd), s.port);
 		}
 	}
 #endif
