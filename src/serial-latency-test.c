@@ -158,18 +158,27 @@ static void print_version(void)
 }
 
 #if defined (_WIN32)
-static void wait_ms(double t)
+static void wait_ms(unsigned long t)
 {
     Sleep(t);
 }
 #else
-static void wait_ms(double t)
+static void wait_ms(unsigned long msec)
 {
-    struct timespec ts;
+	struct timespec timeout0;
+	struct timespec timeout1;
+	struct timespec* tmp;
+	struct timespec* t0 = &timeout0;
+	struct timespec* t1 = &timeout1;
 
-    ts.tv_sec = t / 1000;
-    ts.tv_nsec = (t - ts.tv_sec * 1000) * 1000000;
-    nanosleep(&ts, NULL);
+	t0->tv_sec = msec / 1000;
+	t0->tv_nsec = (msec % 1000) * (1000 * 1000);
+
+	while (nanosleep(t0, t1) == -1 && errno == EINTR) {
+		tmp = t0;
+		t0 = t1;
+		t1 = tmp;
+	}
 }
 #endif
 
